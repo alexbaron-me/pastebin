@@ -9,7 +9,7 @@ use std::io;
 
 use rocket::data::{Data, ToByteUnit};
 use rocket::http::uri::Absolute;
-use rocket::response::content::RawText;
+use rocket::response::content::{RawHtml, RawText};
 use rocket::tokio::fs::{self, File};
 
 use paste_id::PasteId;
@@ -29,6 +29,23 @@ async fn upload(paste: Data<'_>) -> io::Result<String> {
         .into_file(id.file_path())
         .await?;
     Ok(uri!(host(), retrieve(id)).to_string())
+}
+
+#[get("/upload")]
+async fn upload_ui() -> RawHtml<&'static str> {
+    RawHtml(
+        "
+<!DOCTYPE html>
+<html>
+    <body>
+        <form action='/' method='post'>
+            <input type='file' />
+            <button type='submit'>Upload</button>
+        </form>
+    </body>
+</html>
+    ",
+    )
 }
 
 #[get("/<id>")]
@@ -52,13 +69,19 @@ fn index() -> String {
           accepts raw data in the body of the request and responds with a URL of
           a page containing the body's content
 
-          EXAMPLE: curl --data-binary @file.txt {}
+          EXAMPLE: curl --data-binary @file.txt {0}
 
       GET /<id>
 
           retrieves the content for the paste with id `<id>`
+
+    UPLOAD VIA BROWSER
+      
+      GET {0}/upload
+
+          provides a simple upload UI
     ",
-        host()
+        host(),
     )
 }
 
@@ -69,5 +92,5 @@ fn rocket() -> _ {
         let _ = std::fs::create_dir(&upload_path);
     }
 
-    rocket::build().mount("/", routes![index, upload, delete, retrieve])
+    rocket::build().mount("/", routes![index, upload, upload_ui, delete, retrieve])
 }
