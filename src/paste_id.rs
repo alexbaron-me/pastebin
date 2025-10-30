@@ -33,7 +33,7 @@ impl PasteId<'_> {
 
     pub fn file_root_dir() -> PathBuf {
         let dir = std::env::current_dir().expect("Could not get current directory");
-        dir.join("/upload")
+        dir.join("upload")
     }
 }
 
