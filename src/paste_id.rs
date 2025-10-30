@@ -1,5 +1,5 @@
 use std::borrow::Cow;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use rand::{self, Rng};
 use rocket::request::FromParam;
@@ -27,8 +27,13 @@ impl PasteId<'_> {
 
     /// Returns the path to the paste in `upload/` corresponding to this ID.
     pub fn file_path(&self) -> PathBuf {
-        let root = concat!(env!("CARGO_MANIFEST_DIR"), "/", "upload");
-        Path::new(root).join(self.0.as_ref())
+        let root = Self::file_root_dir();
+        root.join(self.0.as_ref())
+    }
+
+    pub fn file_root_dir() -> PathBuf {
+        let dir = std::env::current_dir().expect("Could not get current directory");
+        dir.join("/upload")
     }
 }
 
