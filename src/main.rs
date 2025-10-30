@@ -88,9 +88,9 @@ async fn delete(id: PasteId<'_>) -> Option<()> {
 }
 
 #[get("/")]
-fn index() -> String {
-    format!(
-        "
+fn index() -> RawHtml<String> {
+    RawHtml(format!(
+        "<html><pre>
     USAGE
 
       POST /
@@ -100,18 +100,18 @@ fn index() -> String {
 
           EXAMPLE: curl --data-binary @file.txt {0}
 
-      GET /<id>
+      GET /&lt;id&gt;
 
-          retrieves the content for the paste with id `<id>`
+          retrieves the content for the paste with id `&lt;id&gt;`
 
     UPLOAD VIA BROWSER
       
-      GET {0}/upload
+      GET <a href='{0}/upload'>{0}/upload</a>
 
           provides a simple upload UI
-    ",
+    </pre></html>",
         host(),
-    )
+    ))
 }
 
 #[launch]
