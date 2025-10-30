@@ -14,9 +14,12 @@ use rocket::tokio::fs::{self, File};
 
 use paste_id::PasteId;
 
-// In a real application, these would be retrieved dynamically from a config.
-const HOST: Absolute<'static> = uri!("http://localhost:8000");
 const ID_LENGTH: usize = 3;
+
+fn host() -> Absolute<'static> {
+    let raw = std::env::var("HOST").unwrap_or_else(|_| "http://localhost:8000".to_owned());
+    Absolute::parse_owned(raw).expect("Received invalid HOST parameter")
+}
 
 #[post("/", data = "<paste>")]
 async fn upload(paste: Data<'_>) -> io::Result<String> {
@@ -25,7 +28,7 @@ async fn upload(paste: Data<'_>) -> io::Result<String> {
         .open(128.kibibytes())
         .into_file(id.file_path())
         .await?;
-    Ok(uri!(HOST, retrieve(id)).to_string())
+    Ok(uri!(host(), retrieve(id)).to_string())
 }
 
 #[get("/<id>")]
@@ -39,8 +42,9 @@ async fn delete(id: PasteId<'_>) -> Option<()> {
 }
 
 #[get("/")]
-fn index() -> &'static str {
-    "
+fn index() -> String {
+    format!(
+        "
     USAGE
 
       POST /
@@ -48,12 +52,14 @@ fn index() -> &'static str {
           accepts raw data in the body of the request and responds with a URL of
           a page containing the body's content
 
-          EXAMPLE: curl --data-binary @file.txt https://paste.alexbaron.me
+          EXAMPLE: curl --data-binary @file.txt {}
 
       GET /<id>
 
           retrieves the content for the paste with id `<id>`
-    "
+    ",
+        host()
+    )
 }
 
 #[launch]
