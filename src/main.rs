@@ -58,5 +58,10 @@ fn index() -> &'static str {
 
 #[launch]
 fn rocket() -> _ {
+    let upload_path = PasteId::file_root_dir();
+    if !std::fs::exists(&upload_path).unwrap_or(false) {
+        let _ = std::fs::create_dir(&upload_path);
+    }
+
     rocket::build().mount("/", routes![index, upload, delete, retrieve])
 }
