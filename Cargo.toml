@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+mime-sniffer = "0.1.3"
 rand = "0.8"
 rocket = "0.5.1"

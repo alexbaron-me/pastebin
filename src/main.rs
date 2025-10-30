@@ -6,13 +6,17 @@ mod paste_id;
 mod tests;
 
 use std::io;
+use std::str::FromStr;
 
+use mime_sniffer::MimeTypeSniffer;
 use rocket::data::{Data, ToByteUnit};
+use rocket::http::ContentType;
 use rocket::http::uri::Absolute;
 use rocket::response::content::{RawHtml, RawText};
 use rocket::tokio::fs::{self, File};
 
 use paste_id::PasteId;
+use rocket::tokio::io::AsyncReadExt;
 
 const ID_LENGTH: usize = 3;
 
@@ -49,8 +53,19 @@ async fn upload_ui() -> RawHtml<&'static str> {
 }
 
 #[get("/<id>")]
-async fn retrieve(id: PasteId<'_>) -> Option<RawText<File>> {
-    File::open(id.file_path()).await.map(RawText).ok()
+async fn retrieve(id: PasteId<'_>) -> Option<(ContentType, Vec<u8>)> {
+    let mut file = File::open(id.file_path()).await.ok()?;
+    let mut content = Vec::new();
+    let _ = file.read_to_end(&mut content).await;
+
+    let mime = content.sniff_mime_type();
+    let content_type = mime
+        .map(ContentType::from_str)
+        .map(Result::ok)
+        .flatten()
+        .unwrap_or(ContentType::Text);
+
+    Some((content_type, content))
 }
 
 #[delete("/<id>")]
