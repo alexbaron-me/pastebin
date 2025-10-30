@@ -20,7 +20,7 @@ use rocket::tokio::fs::{self, File};
 use paste_id::PasteId;
 use rocket::tokio::io::AsyncReadExt;
 
-const ID_LENGTH: usize = 3;
+const ID_LENGTH: usize = 4;
 
 pub(crate) fn host() -> Absolute<'static> {
     let raw = std::env::var("HOST").unwrap_or_else(|_| "http://localhost:8000".to_owned());
