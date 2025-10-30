@@ -1,6 +1,9 @@
 use std::borrow::Cow;
 use std::path::PathBuf;
 
+use rocket::request::Request;
+use rocket::response::{self, Responder};
+
 use rand::{self, Rng};
 use rocket::request::FromParam;
 
@@ -34,6 +37,16 @@ impl PasteId<'_> {
     pub fn file_root_dir() -> PathBuf {
         let dir = std::env::current_dir().expect("Could not get current directory");
         dir.join("upload")
+    }
+}
+
+#[rocket::async_trait]
+impl<'r> Responder<'r, 'static> for PasteId<'r> {
+    fn respond_to(self, req: &'r Request<'_>) -> response::Result<'static> {
+        let host = crate::host();
+        uri!(host, crate::retrieve(self))
+            .to_string()
+            .respond_to(req)
     }
 }
 

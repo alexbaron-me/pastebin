@@ -10,9 +10,11 @@ use std::str::FromStr;
 
 use mime_sniffer::MimeTypeSniffer;
 use rocket::data::{Data, ToByteUnit};
+use rocket::form::Form;
+use rocket::fs::TempFile;
 use rocket::http::ContentType;
 use rocket::http::uri::Absolute;
-use rocket::response::content::{RawHtml, RawText};
+use rocket::response::content::RawHtml;
 use rocket::tokio::fs::{self, File};
 
 use paste_id::PasteId;
@@ -20,19 +22,31 @@ use rocket::tokio::io::AsyncReadExt;
 
 const ID_LENGTH: usize = 3;
 
-fn host() -> Absolute<'static> {
+pub(crate) fn host() -> Absolute<'static> {
     let raw = std::env::var("HOST").unwrap_or_else(|_| "http://localhost:8000".to_owned());
     Absolute::parse_owned(raw).expect("Received invalid HOST parameter")
 }
 
 #[post("/", data = "<paste>")]
-async fn upload(paste: Data<'_>) -> io::Result<String> {
+async fn upload(paste: Data<'_>) -> io::Result<PasteId<'_>> {
     let id = PasteId::new(ID_LENGTH);
     paste
         .open(128.kibibytes())
         .into_file(id.file_path())
         .await?;
-    Ok(uri!(host(), retrieve(id)).to_string())
+    Ok(id)
+}
+
+#[derive(FromForm)]
+struct FileUpload<'a> {
+    file: TempFile<'a>,
+}
+
+#[post("/upload", data = "<form>")]
+async fn upload_ui_handler(mut form: Form<FileUpload<'_>>) -> io::Result<PasteId<'_>> {
+    let id = PasteId::new(ID_LENGTH);
+    form.file.move_copy_to(id.file_path()).await?;
+    Ok(id)
 }
 
 #[get("/upload")]
@@ -42,8 +56,8 @@ async fn upload_ui() -> RawHtml<&'static str> {
 <!DOCTYPE html>
 <html>
     <body>
-        <form action='/' method='post'>
-            <input type='file' />
+        <form method='post' enctype='multipart/form-data'>
+            <input type='file' name='file' id='file' />
             <button type='submit'>Upload</button>
         </form>
     </body>
@@ -53,7 +67,7 @@ async fn upload_ui() -> RawHtml<&'static str> {
 }
 
 #[get("/<id>")]
-async fn retrieve(id: PasteId<'_>) -> Option<(ContentType, Vec<u8>)> {
+pub(crate) async fn retrieve(id: PasteId<'_>) -> Option<(ContentType, Vec<u8>)> {
     let mut file = File::open(id.file_path()).await.ok()?;
     let mut content = Vec::new();
     let _ = file.read_to_end(&mut content).await;
@@ -107,5 +121,15 @@ fn rocket() -> _ {
         let _ = std::fs::create_dir(&upload_path);
     }
 
-    rocket::build().mount("/", routes![index, upload, upload_ui, delete, retrieve])
+    rocket::build().mount(
+        "/",
+        routes![
+            index,
+            upload,
+            upload_ui,
+            upload_ui_handler,
+            delete,
+            retrieve
+        ],
+    )
 }
