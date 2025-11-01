@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate rocket;
 
+mod metrics;
 mod paste_id;
 #[cfg(test)]
 mod tests;
@@ -19,8 +20,8 @@ use rocket::tokio::fs::{self, File};
 
 use paste_id::PasteId;
 use rocket::tokio::io::AsyncReadExt;
-use rocket_prometheus::PrometheusMetrics;
-use rocket_prometheus::prometheus::{Gauge, PullingGauge};
+
+use crate::metrics::AttachMetrics as _;
 
 const ID_LENGTH: usize = 4;
 
@@ -116,13 +117,6 @@ fn index() -> RawHtml<String> {
     ))
 }
 
-fn stored_files() -> f64 {
-    let dir = PasteId::file_root_dir();
-    std::fs::read_dir(dir)
-        .map(|res| res.count() as f64)
-        .unwrap_or(-1f64)
-}
-
 #[launch]
 fn rocket() -> _ {
     let upload_path = PasteId::file_root_dir();
@@ -130,31 +124,15 @@ fn rocket() -> _ {
         let _ = std::fs::create_dir(&upload_path);
     }
 
-    let prometheus = PrometheusMetrics::new();
-    prometheus
-        .registry()
-        .register(Box::new(
-            PullingGauge::new(
-                "pastebin_stored_files",
-                "Amount of files currently stored in the pastebin",
-                Box::new(|| stored_files()),
-            )
-            .expect("Failed to create pastebin_stored_files openmetrics gauge"),
-        ))
-        .expect("Failed to add custom prometheus metric");
-
-    rocket::build()
-        .attach(prometheus.clone())
-        .mount(
-            "/",
-            routes![
-                index,
-                upload,
-                upload_ui,
-                upload_ui_handler,
-                delete,
-                retrieve,
-            ],
-        )
-        .mount("/metrics", prometheus)
+    rocket::build().add_metrics().mount(
+        "/",
+        routes![
+            index,
+            upload,
+            upload_ui,
+            upload_ui_handler,
+            delete,
+            retrieve,
+        ],
+    )
 }
