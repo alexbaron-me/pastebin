@@ -128,7 +128,7 @@ fn rocket() -> _ {
         let _ = std::fs::create_dir(&upload_path);
     }
 
-    upload::<'_>.test();
+    // upload::<'_>.test();
 
     rocket::build().add_metrics().mount(
         "/",

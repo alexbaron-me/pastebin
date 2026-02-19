@@ -44,7 +44,7 @@ impl PasteId<'_> {
 impl<'r> Responder<'r, 'static> for PasteId<'r> {
     fn respond_to(self, req: &'r Request<'_>) -> response::Result<'static> {
         let host = crate::host();
-        uri!(host, crate::retrieve(self))
+        uri!(host, crate::retrieve(self, None::<String>))
             .to_string()
             .respond_to(req)
     }
