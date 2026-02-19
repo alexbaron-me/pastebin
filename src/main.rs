@@ -10,7 +10,7 @@ use std::io;
 use std::str::FromStr;
 
 use mime_sniffer::MimeTypeSniffer;
-use rocket::data::{Data, ToByteUnit};
+use rocket::data::{Data, Limits, ToByteUnit};
 use rocket::form::Form;
 use rocket::fs::TempFile;
 use rocket::http::ContentType;
@@ -31,10 +31,10 @@ pub(crate) fn host() -> Absolute<'static> {
 }
 
 #[post("/", data = "<paste>")]
-async fn upload(paste: Data<'_>) -> io::Result<PasteId<'_>> {
+async fn upload<'a>(paste: Data<'a>, limits: &'a Limits) -> io::Result<PasteId<'a>> {
     let id = PasteId::new(ID_LENGTH);
     paste
-        .open(128.kibibytes())
+        .open(limits.get("file").unwrap_or(128.kibibytes()))
         .into_file(id.file_path())
         .await?;
     Ok(id)
@@ -69,13 +69,17 @@ async fn upload_ui() -> RawHtml<&'static str> {
     )
 }
 
-#[get("/<id>")]
-pub(crate) async fn retrieve(id: PasteId<'_>) -> Option<(ContentType, Vec<u8>)> {
+#[get("/<id>?<mime_type>")]
+pub(crate) async fn retrieve(
+    id: PasteId<'_>,
+    mime_type: Option<String>,
+) -> Option<(ContentType, Vec<u8>)> {
     let mut file = File::open(id.file_path()).await.ok()?;
     let mut content = Vec::new();
     let _ = file.read_to_end(&mut content).await;
 
-    let mime = content.sniff_mime_type();
+    let mime = mime_type.as_deref().or_else(|| content.sniff_mime_type());
+
     let content_type = mime
         .map(ContentType::from_str)
         .map(Result::ok)
@@ -123,6 +127,8 @@ fn rocket() -> _ {
     if !std::fs::exists(&upload_path).unwrap_or(false) {
         let _ = std::fs::create_dir(&upload_path);
     }
+
+    upload::<'_>.test();
 
     rocket::build().add_metrics().mount(
         "/",
