@@ -1,3 +1,4 @@
-[global.limits]
-file = 67108864 # 64 MiB
+[default.limits]
+form = "256MiB"
+file = "256MiB"
 
