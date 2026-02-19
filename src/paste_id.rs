@@ -1,4 +1,5 @@
 use std::borrow::Cow;
+use std::fmt::Display;
 use std::path::PathBuf;
 
 use rocket::request::Request;
@@ -37,6 +38,12 @@ impl PasteId<'_> {
     pub fn file_root_dir() -> PathBuf {
         let dir = std::env::current_dir().expect("Could not get current directory");
         dir.join("upload")
+    }
+}
+
+impl Display for PasteId<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 

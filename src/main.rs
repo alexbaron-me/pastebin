@@ -7,6 +7,7 @@ mod paste_id;
 mod tests;
 
 use std::io;
+use std::io::Write;
 use std::str::FromStr;
 
 use mime_sniffer::MimeTypeSniffer;
@@ -20,6 +21,10 @@ use rocket::tokio::fs::{self, File};
 
 use paste_id::PasteId;
 use rocket::tokio::io::AsyncReadExt;
+use zip::CompressionMethod::Stored;
+use zip::result::ZipError;
+use zip::write::SimpleFileOptions;
+use zip::{AesMode, CompressionMethod::Zstd};
 
 use crate::metrics::AttachMetrics as _;
 
@@ -37,6 +42,28 @@ async fn upload<'a>(paste: Data<'a>, limits: &'a Limits) -> io::Result<PasteId<'
         .open(limits.get("file").unwrap_or(128.kibibytes()))
         .into_file(id.file_path())
         .await?;
+    Ok(id)
+}
+
+#[post("/encrypted", data = "<paste>")]
+async fn upload_encrypted<'a>(paste: Data<'a>, limits: &'a Limits) -> io::Result<PasteId<'a>> {
+    let id = PasteId::new(ID_LENGTH);
+
+    let options = SimpleFileOptions::default()
+        .compression_method(Zstd)
+        .with_aes_encryption(AesMode::Aes256, "password");
+
+    let out_path = id.file_path();
+    let mut writer = zip::ZipWriter::new(std::fs::File::create(out_path)?);
+    writer.start_file("content", options)?;
+    writer.write(
+        paste
+            .open(limits.get("file").unwrap_or(128.kibibytes()))
+            .into_bytes()
+            .await?
+            .as_ref(),
+    )?;
+
     Ok(id)
 }
 
@@ -135,6 +162,7 @@ fn rocket() -> _ {
         routes![
             index,
             upload,
+            upload_encrypted,
             upload_ui,
             upload_ui_handler,
             delete,
