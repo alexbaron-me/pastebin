@@ -39,7 +39,7 @@ pub(crate) fn host() -> Absolute<'static> {
 async fn upload<'a>(paste: Data<'a>, limits: &'a Limits) -> io::Result<PasteId<'a>> {
     let id = PasteId::new(ID_LENGTH);
     paste
-        .open(limits.get("file").unwrap_or(128.mebibytes()))
+        .open(limits.get("file").unwrap_or(512.mebibytes()))
         .into_file(id.file_path())
         .await?;
     Ok(id)
@@ -56,7 +56,7 @@ async fn upload_encrypted<'a>(paste: Data<'a>, limits: &'a Limits) -> io::Result
     let out_path = id.file_path();
     let mut writer = zip::ZipWriter::new(std::fs::File::create(out_path)?);
     writer.start_file("content", options)?;
-    writer.write(paste.open(128.gigabytes()).into_bytes().await?.as_ref())?;
+    writer.write(paste.open(512.gigabytes()).into_bytes().await?.as_ref())?;
 
     Ok(id)
 }
