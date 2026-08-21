@@ -56,7 +56,8 @@ async fn upload_encrypted<'a>(paste: Data<'a>, limits: &'a Limits) -> io::Result
     let out_path = id.file_path();
     let mut writer = zip::ZipWriter::new(std::fs::File::create(out_path)?);
     writer.start_file("content", options)?;
-    writer.write(paste.open(512.gigabytes()).into_bytes().await?.as_ref())?;
+    writer.write_all(paste.open(512.gigabytes()).into_bytes().await?.as_ref())?;
+    writer.finish()?;
 
     Ok(id)
 }
