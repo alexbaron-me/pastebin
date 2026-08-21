@@ -24,7 +24,7 @@ use rocket::tokio::io::AsyncReadExt;
 use zip::CompressionMethod::Stored;
 use zip::result::ZipError;
 use zip::write::SimpleFileOptions;
-use zip::{AesMode, CompressionMethod::Zstd};
+use zip::{AesMode, CompressionMethod::Deflated};
 
 use crate::metrics::AttachMetrics as _;
 
@@ -50,7 +50,7 @@ async fn upload_encrypted<'a>(paste: Data<'a>, limits: &'a Limits) -> io::Result
     let id = PasteId::new(ID_LENGTH);
 
     let options = SimpleFileOptions::default()
-        .compression_method(Zstd)
+        .compression_method(Deflated)
         .with_aes_encryption(AesMode::Aes256, "password");
 
     let out_path = id.file_path();
